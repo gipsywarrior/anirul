@@ -199,10 +199,33 @@
                                     Seleccionar habilidad...
                                 </button>
                             </div>
-                            <div class="skill-input-empty-row">
-                                <span style="color: var(--text-tertiary); font-size: 11px;">o enviar texto libre:</span>
-                                <input type="text" id="carte-blanche-desc" class="input input-sm" placeholder="Descripción..." style="flex: 1;">
-                                <button class="btn btn-primary btn-sm" onclick="sendCarteBlanche()">Enviar</button>
+                            <div class="player-free-action-bar">
+                                <span style="color: var(--text-tertiary); font-size: 11px;">o acción libre:</span>
+                                <div class="enemy-input-row">
+                                    <span style="font-size: 11px; color: var(--text-tertiary);">hace</span>
+                                    <input type="number" id="player-free-damage" class="input input-sm" placeholder="Daño" style="width: 80px;">
+                                    <span style="font-size: 11px; color: var(--text-tertiary);">a</span>
+                                    <select id="player-free-target" class="input input-sm" style="width: 120px;">
+                                        <option value="">Objetivo...</option>
+                                    </select>
+                                    <span style="font-size: 11px; color: var(--text-tertiary);">por</span>
+                                    <input type="number" id="player-free-pa" class="input input-sm" placeholder="PA" style="width: 50px;" value="1">
+                                    <span style="font-size: 11px; color: var(--text-tertiary);">PA</span>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="player-free-indirect" onchange="togglePlayerFreeIndirectOptions()"> Indirecto
+                                    </label>
+                                    <button class="btn btn-primary btn-sm" onclick="sendPlayerFreeAction()">Enviar</button>
+                                </div>
+                                <div class="enemy-input-row" style="margin-top: 8px;">
+                                    <input type="text" id="player-free-desc" class="input input-sm" placeholder="Descripción..." style="flex: 1;">
+                                </div>
+                                <div class="indirect-options" id="player-free-indirect-options" style="display: none;">
+                                    <span style="font-size: 11px;">Indirecto:</span>
+                                    <input type="number" id="player-free-indirect-percent" class="input input-sm" value="10" style="width: 60px;" min="1" max="100">
+                                    <span style="font-size: 11px;">% por</span>
+                                    <input type="number" id="player-free-indirect-actions" class="input input-sm" value="3" style="width: 50px;" min="1">
+                                    <span style="font-size: 11px;">acciones</span>
+                                </div>
                             </div>
                         </div>
 
@@ -289,6 +312,7 @@
                             <div class="log-empty" style="padding: 16px; text-align: center;">Sin adversarios</div>
                         </div>
                     </div>
+                    <button class="btn blank-action-btn" onclick="sendBlankAction()">Enviar acción en blanco</button>
                 </div>
             </div>
         </div>
@@ -303,6 +327,8 @@
             </div>
             <div class="modal-body">
                 <input type="text" id="skill-search" class="input" placeholder="Buscar habilidad..." oninput="filterSkills()">
+
+                <div id="doc-filters" class="doc-filters"></div>
 
                 <div class="skill-picker">
                     <div class="skill-list" id="skill-list">
@@ -341,6 +367,22 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal('modal-enemy')">Cancelar</button>
                 <button class="btn btn-primary" onclick="addEnemy()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Alert -->
+    <div id="modal-alert" class="modal">
+        <div class="modal-dialog" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Aviso</h3>
+                <button class="modal-close" onclick="closeModal('modal-alert')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="alert-message" style="color: var(--text-primary); text-align: center; padding: 12px 0;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button class="btn btn-primary" onclick="closeModal('modal-alert')">Aceptar</button>
             </div>
         </div>
     </div>

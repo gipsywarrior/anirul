@@ -20,6 +20,7 @@ let pendingSkill = null;
 let pendingDamage = 0;
 let editingEntryIndex = null;
 let currentActor = 'player'; // 'player' or enemy id
+let selectedDocFilter = null; // For filtering skills by document
 
 const parser = new SkillParser();
 
@@ -30,12 +31,23 @@ const parser = new SkillParser();
 document.addEventListener('DOMContentLoaded', () => {
     initTitlebar();
     loadProfiles();
+    initInputFocusFix();
 });
 
 function initTitlebar() {
     document.getElementById('btn-minimize').onclick = () => ipcRenderer.send('window-minimize');
     document.getElementById('btn-maximize').onclick = () => ipcRenderer.send('window-maximize');
     document.getElementById('btn-close').onclick = () => ipcRenderer.send('window-close');
+}
+
+/**
+ * Fix for Electron input focus issues
+ * Prevents inputs from losing focus unexpectedly
+ */
+function initInputFocusFix() {
+    // Logic removed: Replaced by CSS -webkit-app-region: no-drag solution
+    // The previous JS listeners were potential causes of input blocking/conflict.
+    console.log('initInputFocusFix: Legacy fix disabled.');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -173,7 +185,7 @@ async function saveProfile() {
     const nombre = document.getElementById('profile-name').value.trim();
 
     if (!nombre) {
-        alert('El nombre es requerido');
+        showAlert('El nombre es requerido');
         return;
     }
 
@@ -216,9 +228,9 @@ async function saveProfile() {
         await loadProfiles();
         renderProfilesList();
         selectProfile(profile.id);
-        alert('Perfil guardado');
+        showAlert('Perfil guardado');
     } else {
-        alert('Error: ' + result.error);
+        showAlert('Error: ' + result.error);
     }
 }
 
@@ -279,20 +291,33 @@ function startCombat(profileId) {
         paMax: 8,
         enemies: [],
         log: [],
-        indirects: [], // Active indirects: { targetId, targetName, baseDamage, percent, actionsLeft, sourceName }
+        indirects: [],
         enemyIdCounter: 0,
         logIdCounter: 0,
         actionCount: 0
     };
 
+    // RESET actor to player when starting new combat
     currentActor = 'player';
     clearSelectedSkill();
     showScreen('screen-combat');
     renderCombat();
+
+    // Reset player input visibility
+    document.getElementById('skill-input-area').style.display = 'block';
+    document.getElementById('enemy-input-area').style.display = 'none';
 }
 
 function renderCombat() {
     if (!combat) return;
+
+    // Save focus state before rendering
+    const activeElement = document.activeElement;
+    const activeId = activeElement ? activeElement.id : null;
+    const activeValue = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')
+        ? activeElement.value : null;
+    const selectionStart = activeElement && activeElement.selectionStart;
+    const selectionEnd = activeElement && activeElement.selectionEnd;
 
     // Header
     document.getElementById('combat-title').textContent = combat.profile.nombre;
@@ -330,14 +355,62 @@ function renderCombat() {
 
     // Update target dropdowns
     updateTargetDropdown();
+    updatePlayerTargetDropdown();
     updateEnemyTargetDropdown();
+    // Restore focus
+    if (activeId) {
+        const newElement = document.getElementById(activeId);
+        if (newElement && typeof newElement.focus === 'function') {
+            newElement.focus();
+            if (activeValue !== null && (newElement.tagName === 'INPUT' || newElement.tagName === 'TEXTAREA')) {
+                // Only restore value if it's different to avoid cursor jumps if not needed, 
+                // but usually needed if the render reset it.
+                // However, setting value moves cursor to end usually.
+                // So we restore selection range.
+                newElement.value = activeValue;
+                if (typeof selectionStart === 'number') {
+                    newElement.setSelectionRange(selectionStart, selectionEnd);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Helper to preserve focus when updating innerHTML of elements
+ */
+function preserveFocusUpdate(callback) {
+    const activeElement = document.activeElement;
+    const activeId = activeElement ? activeElement.id : null;
+    const activeValue = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')
+        ? activeElement.value : null;
+    const selectionStart = activeElement && activeElement.selectionStart;
+    const selectionEnd = activeElement && activeElement.selectionEnd;
+
+    callback();
+
+    // Restore focus
+    if (activeId) {
+        const newElement = document.getElementById(activeId);
+        if (newElement && typeof newElement.focus === 'function') {
+            newElement.focus();
+            if (activeValue !== null && (newElement.tagName === 'INPUT' || newElement.tagName === 'TEXTAREA')) {
+                newElement.value = activeValue;
+                if (typeof selectionStart === 'number') {
+                    newElement.setSelectionRange(selectionStart, selectionEnd);
+                }
+            }
+        }
+    }
 }
 
 function updateActorSelector() {
     const select = document.getElementById('actor-select');
+    const wasFocused = document.activeElement === select;
     select.innerHTML = '<option value="player">Yo (Jugador)</option>' +
         combat.enemies.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
     select.value = currentActor;
+    if (wasFocused) select.focus();
 }
 
 function onActorChange() {
@@ -362,16 +435,36 @@ function updateTargetDropdown() {
     const targetSelect = document.getElementById('skill-target');
     if (!targetSelect) return;
 
+    const wasFocused = document.activeElement === targetSelect;
+    const currentValue = targetSelect.value;
     targetSelect.innerHTML = '<option value="">Objetivo...</option>' +
         combat.enemies.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    if (currentValue) targetSelect.value = currentValue;
+    if (wasFocused) targetSelect.focus();
+}
+
+function updatePlayerTargetDropdown() {
+    const targetSelect = document.getElementById('player-free-target');
+    if (!targetSelect) return;
+
+    const wasFocused = document.activeElement === targetSelect;
+    const currentValue = targetSelect.value;
+    targetSelect.innerHTML = '<option value="">Objetivo...</option>' +
+        combat.enemies.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    if (currentValue) targetSelect.value = currentValue;
+    if (wasFocused) targetSelect.focus();
 }
 
 function updateEnemyTargetDropdown() {
     const targetSelect = document.getElementById('enemy-target');
     if (!targetSelect) return;
 
+    const wasFocused = document.activeElement === targetSelect;
+    const currentValue = targetSelect.value;
     targetSelect.innerHTML = '<option value="player">Jugador</option>' +
         combat.enemies.filter(e => e.id !== currentActor).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    if (currentValue) targetSelect.value = currentValue;
+    if (wasFocused) targetSelect.focus();
 }
 
 function renderEnemies() {
@@ -430,7 +523,6 @@ function renderCombatLog() {
 
     let html = '';
 
-    // Render in chronological order (oldest first, newest last)
     const roundNumbers = Object.keys(rounds).map(Number).sort((a, b) => a - b);
 
     for (const roundNum of roundNumbers) {
@@ -484,10 +576,11 @@ function renderLogEntry(entry) {
         icon = '⚔';
         mainText = `<strong>${entry.actorName || 'Jugador'}</strong> usa <strong>${entry.skillName}</strong>`;
         if (entry.alcance) mainText += ` <span style="color: var(--text-tertiary);">[${entry.alcance}]</span>`;
+        // Show PA cost
+        if (entry.paCost !== undefined) mainText += ` <span style="color: var(--accent);">(${entry.paCost} PA)</span>`;
         if (entry.target) mainText += ` → ${entry.target}`;
         if (entry.damage > 0) {
             mainText += ` <span style="color: var(--danger);">(${entry.damage} daño)</span>`;
-            // Add received button
             const receivedClass = entry.damageReceived ? 'received' : 'pending';
             const receivedText = entry.damageReceived ? '✓ Recibido' : 'Marcar recibido';
             mainText += ` <button class="damage-received-btn ${receivedClass}" onclick="toggleDamageReceived(${entry.id})">${receivedText}</button>`;
@@ -498,10 +591,32 @@ function renderLogEntry(entry) {
     } else if (entry.type === 'enemy-action') {
         iconClass = 'damage';
         icon = '⚔';
-        mainText = `<strong>${entry.actorName}</strong> hace <strong style="color: var(--danger);">${entry.damage}</strong> daño a ${entry.target}`;
-        const receivedClass = entry.damageReceived ? 'received' : 'pending';
-        const receivedText = entry.damageReceived ? '✓ Recibido' : 'Marcar recibido';
-        mainText += ` <button class="damage-received-btn ${receivedClass}" onclick="toggleDamageReceived(${entry.id})">${receivedText}</button>`;
+        if (entry.damage > 0) {
+            mainText = `<strong>${entry.actorName}</strong> hace <strong style="color: var(--danger);">${entry.damage}</strong> daño a ${entry.target}`;
+            // Show PA cost
+            if (entry.paCost !== undefined) mainText += ` <span style="color: var(--accent);">(${entry.paCost} PA)</span>`;
+            const receivedClass = entry.damageReceived ? 'received' : 'pending';
+            const receivedText = entry.damageReceived ? '✓ Recibido' : 'Marcar recibido';
+            mainText += ` <button class="damage-received-btn ${receivedClass}" onclick="toggleDamageReceived(${entry.id})">${receivedText}</button>`;
+        } else {
+            mainText = `<strong>${entry.actorName}</strong> realiza una acción`;
+            if (entry.paCost !== undefined) mainText += ` <span style="color: var(--accent);">(${entry.paCost} PA)</span>`;
+        }
+        if (entry.indirect) {
+            mainText += ` <span style="color: var(--warning);">+ Indirecto ${entry.indirect.percent}% x${entry.indirect.actions} acc</span>`;
+        }
+    } else if (entry.type === 'player-free') {
+        iconClass = 'skill';
+        icon = '✦';
+        mainText = `<strong>${entry.actorName || 'Jugador'}</strong>`;
+        if (entry.paCost !== undefined) mainText += ` <span style="color: var(--accent);">(${entry.paCost} PA)</span>`;
+        if (entry.target) mainText += ` → ${entry.target}`;
+        if (entry.damage > 0) {
+            mainText += ` <span style="color: var(--danger);">(${entry.damage} daño)</span>`;
+            const receivedClass = entry.damageReceived ? 'received' : 'pending';
+            const receivedText = entry.damageReceived ? '✓ Recibido' : 'Marcar recibido';
+            mainText += ` <button class="damage-received-btn ${receivedClass}" onclick="toggleDamageReceived(${entry.id})">${receivedText}</button>`;
+        }
         if (entry.indirect) {
             mainText += ` <span style="color: var(--warning);">+ Indirecto ${entry.indirect.percent}% x${entry.indirect.actions} acc</span>`;
         }
@@ -509,13 +624,7 @@ function renderLogEntry(entry) {
         iconClass = '';
         icon = '⊘';
         mainText = `<span style="color: var(--text-tertiary);">Acción en blanco</span>`;
-    } else if (entry.type === 'carte-blanche') {
-        iconClass = 'skill';
-        icon = '✦';
-        mainText = `<strong>${entry.actorName || 'Jugador'}</strong>`;
-        if (entry.description) mainText += `: ${entry.description}`;
     } else if (entry.type === 'indirect-tick') {
-        // This is rendered separately
         return `
             <div class="log-entry-indirect">
                 ${entry.targetName} recibe <strong style="color: var(--danger);">-${entry.damage}</strong> por indirecto de ${entry.sourceName}
@@ -551,9 +660,7 @@ function toggleDamageReceived(entryId) {
 
     entry.damageReceived = !entry.damageReceived;
 
-    // Apply or remove damage
     if (entry.damageReceived) {
-        // Apply damage to target
         if (entry.targetId === 'player') {
             combat.vit = Math.max(0, combat.vit - entry.damage);
         } else {
@@ -563,7 +670,6 @@ function toggleDamageReceived(entryId) {
             }
         }
     } else {
-        // Restore damage
         if (entry.targetId === 'player') {
             combat.vit = Math.min(combat.vitMax, combat.vit + entry.damage);
         } else {
@@ -600,6 +706,7 @@ function endRound() {
 function confirmEndCombat() {
     if (confirm('¿Terminar el combate?')) {
         combat = null;
+        currentActor = 'player'; // Reset on exit
         showScreen('screen-menu');
     }
 }
@@ -611,7 +718,6 @@ function confirmEndCombat() {
 function processAction() {
     combat.actionCount++;
 
-    // Process active indirects
     const ticksToAdd = [];
 
     for (let i = combat.indirects.length - 1; i >= 0; i--) {
@@ -619,7 +725,6 @@ function processAction() {
         if (ind.actionsLeft > 0) {
             const tickDamage = Math.floor(ind.baseDamage * (ind.percent / 100));
 
-            // Apply damage
             if (ind.targetId === 'player') {
                 combat.vit = Math.max(0, combat.vit - tickDamage);
             } else {
@@ -629,7 +734,6 @@ function processAction() {
                 }
             }
 
-            // Log the tick
             combat.logIdCounter++;
             ticksToAdd.push({
                 id: combat.logIdCounter,
@@ -644,14 +748,12 @@ function processAction() {
 
             ind.actionsLeft--;
 
-            // Remove if depleted
             if (ind.actionsLeft <= 0) {
                 combat.indirects.splice(i, 1);
             }
         }
     }
 
-    // Add tick logs
     combat.log.push(...ticksToAdd);
 }
 
@@ -662,15 +764,25 @@ function processAction() {
 function clearSelectedSkill() {
     pendingSkill = null;
     pendingDamage = 0;
-    document.getElementById('skill-input-empty').style.display = 'flex';
-    document.getElementById('skill-input-full').style.display = 'none';
-    document.getElementById('add-indirect').checked = false;
-    document.getElementById('indirect-options').style.display = 'none';
+    const emptyDiv = document.getElementById('skill-input-empty');
+    const fullDiv = document.getElementById('skill-input-full');
+    if (emptyDiv) emptyDiv.style.display = 'flex';
+    if (fullDiv) fullDiv.style.display = 'none';
+
+    const addIndirect = document.getElementById('add-indirect');
+    const indirectOptions = document.getElementById('indirect-options');
+    if (addIndirect) addIndirect.checked = false;
+    if (indirectOptions) indirectOptions.style.display = 'none';
 }
 
 function toggleIndirectOptions() {
     const checked = document.getElementById('add-indirect').checked;
     document.getElementById('indirect-options').style.display = checked ? 'flex' : 'none';
+}
+
+function togglePlayerFreeIndirectOptions() {
+    const checked = document.getElementById('player-free-indirect').checked;
+    document.getElementById('player-free-indirect-options').style.display = checked ? 'flex' : 'none';
 }
 
 function toggleEnemyIndirectOptions() {
@@ -681,7 +793,6 @@ function toggleEnemyIndirectOptions() {
 function setSelectedSkill(skill) {
     pendingSkill = skill;
 
-    // Calculate damage if applicable
     pendingDamage = 0;
     const formula = parser.extractDamageFormula(skill.efecto);
     if (formula && combat) {
@@ -689,10 +800,8 @@ function setSelectedSkill(skill) {
         pendingDamage = Math.floor(statValue * formula.multiplier);
     }
 
-    // Calculate cost (no increment for repeated use)
     const cost = skill.costo_pa || 1;
 
-    // Update UI
     document.getElementById('skill-input-empty').style.display = 'none';
     document.getElementById('skill-input-full').style.display = 'flex';
 
@@ -700,7 +809,6 @@ function setSelectedSkill(skill) {
     document.getElementById('input-skill-range').textContent = `Alcance: ${skill.alcance || 'N/A'}`;
     document.getElementById('input-skill-cost').textContent = `${cost} PA`;
 
-    // Show damage if applicable
     const damageDiv = document.getElementById('input-skill-damage');
     if (pendingDamage > 0) {
         damageDiv.style.display = 'block';
@@ -709,14 +817,11 @@ function setSelectedSkill(skill) {
         damageDiv.style.display = 'none';
     }
 
-    // Show mechanical effect
     const effectText = skill.efecto || skill.efecto_visual || 'Sin descripción';
     document.getElementById('input-skill-effect').textContent = effectText;
 
-    // Update target dropdown
     updateTargetDropdown();
 
-    // Reset
     document.getElementById('skill-notes').value = '';
     document.getElementById('add-indirect').checked = false;
     document.getElementById('indirect-options').style.display = 'none';
@@ -728,7 +833,7 @@ function sendSkill() {
     const cost = pendingSkill.costo_pa || 1;
 
     if (cost > combat.pa) {
-        alert('PA insuficiente');
+        showAlert('PA insuficiente');
         return;
     }
 
@@ -736,33 +841,29 @@ function sendSkill() {
     const notes = document.getElementById('skill-notes').value;
     const addIndirect = document.getElementById('add-indirect').checked;
 
-    // Don't allow sending damage skills without target
     if (pendingDamage > 0 && !targetId) {
-        alert('Selecciona un objetivo para habilidades con daño');
+        showAlert('Selecciona un objetivo para habilidades con daño');
         return;
     }
 
-    // Process indirects BEFORE adding new ones (so new indirect counts from next action)
+    // Process existing indirects
     processAction();
 
     // Spend PA
     combat.pa -= cost;
 
-    // Get target name
     let targetName = '';
     if (targetId) {
         const enemy = combat.enemies.find(e => e.id === targetId);
         if (enemy) targetName = enemy.name;
     }
 
-    // Prepare indirect data
     let indirectData = null;
     if (addIndirect && pendingDamage > 0 && targetId) {
         const percent = parseInt(document.getElementById('indirect-percent').value) || 10;
         const actions = parseInt(document.getElementById('indirect-actions').value) || 3;
         indirectData = { percent, actions };
 
-        // Add to active indirects
         combat.indirects.push({
             targetId: targetId,
             targetName: targetName,
@@ -773,7 +874,6 @@ function sendSkill() {
         });
     }
 
-    // Log entry (damage NOT applied automatically)
     combat.logIdCounter++;
     combat.log.push({
         id: combat.logIdCounter,
@@ -794,9 +894,6 @@ function sendSkill() {
         notes: notes
     });
 
-    // Process action (handles indirects)
-    processAction();
-
     clearSelectedSkill();
     renderCombat();
 }
@@ -816,27 +913,83 @@ function sendBlankAction() {
     renderCombat();
 }
 
-function sendCarteBlanche() {
+function sendPlayerFreeAction() {
     if (!combat) return;
 
-    const description = document.getElementById('carte-blanche-desc').value.trim();
-    if (!description) {
-        alert('Ingresa una descripción');
+    const damage = parseInt(document.getElementById('player-free-damage').value) || 0;
+    const targetId = document.getElementById('player-free-target').value;
+    const paCost = parseInt(document.getElementById('player-free-pa').value) || 0;
+    const description = document.getElementById('player-free-desc').value.trim();
+    const addIndirect = document.getElementById('player-free-indirect').checked;
+
+    if (!description && damage <= 0) {
+        showAlert('Ingresa una descripción o un daño');
         return;
+    }
+
+    if (paCost > combat.pa) {
+        showAlert('PA insuficiente');
+        return;
+    }
+
+    if (damage > 0 && !targetId) {
+        showAlert('Selecciona un objetivo para habilidades con daño');
+        return;
+    }
+
+    // Process existing indirects
+    processAction();
+
+    // Spend PA
+    if (paCost > 0) {
+        combat.pa -= paCost;
+    }
+
+    let targetName = '';
+    if (targetId) {
+        const enemy = combat.enemies.find(e => e.id === targetId);
+        if (enemy) targetName = enemy.name;
+    }
+
+    let indirectData = null;
+    if (addIndirect && damage > 0 && targetId) {
+        const percent = parseInt(document.getElementById('player-free-indirect-percent').value) || 10;
+        const actions = parseInt(document.getElementById('player-free-indirect-actions').value) || 3;
+        indirectData = { percent, actions };
+
+        combat.indirects.push({
+            targetId: targetId,
+            targetName: targetName,
+            baseDamage: damage,
+            percent: percent,
+            actionsLeft: actions,
+            sourceName: 'Jugador'
+        });
     }
 
     combat.logIdCounter++;
     combat.log.push({
         id: combat.logIdCounter,
-        type: 'carte-blanche',
+        type: 'player-free',
         round: combat.round,
         turn: combat.turn,
         actorName: combat.profile.nombre,
-        description: description
+        paCost: paCost,
+        targetId: targetId,
+        target: targetName,
+        damage: damage,
+        damageReceived: false,
+        indirect: indirectData,
+        notes: description
     });
 
-    document.getElementById('carte-blanche-desc').value = '';
-    processAction();
+    // Clear inputs
+    document.getElementById('player-free-damage').value = '';
+    document.getElementById('player-free-pa').value = '1';
+    document.getElementById('player-free-desc').value = '';
+    document.getElementById('player-free-indirect').checked = false;
+    document.getElementById('player-free-indirect-options').style.display = 'none';
+
     renderCombat();
 }
 
@@ -850,29 +1003,34 @@ function sendEnemyAction() {
     const targetId = document.getElementById('enemy-target').value;
     const addIndirect = document.getElementById('enemy-add-indirect').checked;
     const description = document.getElementById('enemy-description').value.trim();
-    const paCost = parseInt(document.getElementById('enemy-pa-cost').value) || 1;
+    const paCost = parseInt(document.getElementById('enemy-pa-cost').value) || 0;
 
-    if (damage <= 0) {
-        alert('Ingresa el daño');
+    // Allow sending without damage (just text)
+    if (damage <= 0 && !description) {
+        showAlert('Ingresa el daño o una descripción');
         return;
     }
 
     if (paCost > enemy.pa) {
-        alert('PA insuficiente para este adversario');
+        showAlert('PA insuficiente para este adversario');
         return;
     }
 
-    // Spend enemy PA
-    enemy.pa -= paCost;
+    // Process existing indirects FIRST
+    processAction();
 
-    // Get target name
+    // Spend enemy PA (only if paCost > 0)
+    if (paCost > 0) {
+        enemy.pa -= paCost;
+    }
+
     let targetName = 'Jugador';
     if (targetId !== 'player') {
         const targetEnemy = combat.enemies.find(e => e.id === targetId);
         if (targetEnemy) targetName = targetEnemy.name;
     }
 
-    // Prepare indirect data
+    // Add indirect AFTER processAction (so it starts from next action)
     let indirectData = null;
     if (addIndirect && damage > 0) {
         const percent = parseInt(document.getElementById('enemy-indirect-percent').value) || 10;
@@ -912,7 +1070,6 @@ function sendEnemyAction() {
     document.getElementById('enemy-add-indirect').checked = false;
     document.getElementById('enemy-indirect-options').style.display = 'none';
 
-    processAction();
     renderCombat();
 }
 
@@ -971,7 +1128,7 @@ function deleteEntry(entryId) {
 
 function restoreDamageIfReceived(entry) {
     // Restore PA if skill was used by player
-    if (entry.type === 'skill' && entry.paCost) {
+    if ((entry.type === 'skill' || entry.type === 'player-free') && entry.paCost) {
         combat.pa = Math.min(combat.paMax, combat.pa + entry.paCost);
     }
 
@@ -985,7 +1142,6 @@ function restoreDamageIfReceived(entry) {
 
     if (!entry.damageReceived || !entry.damage) return;
 
-    // Restore the damage that was applied
     if (entry.targetId === 'player') {
         combat.vit = Math.min(combat.vitMax, combat.vit + entry.damage);
     } else if (entry.targetId) {
@@ -1014,12 +1170,33 @@ function deleteRound(roundNum) {
 // MODALS
 // ═══════════════════════════════════════════════════════════════
 
+let lastFocusedElement = null;
+
 function openModal(modalId) {
+    // Store the currently focused element
+    lastFocusedElement = document.activeElement;
     document.getElementById(modalId).classList.add('active');
+
+    // Focus first input in modal if available
+    setTimeout(() => {
+        const modal = document.getElementById(modalId);
+        const firstInput = modal.querySelector('input:not([type="checkbox"]):not([type="hidden"]), select, textarea');
+        if (firstInput) {
+            firstInput.focus();
+        }
+    }, 50);
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+
+    // Restore focus to previously focused element
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+        setTimeout(() => {
+            lastFocusedElement.focus();
+            lastFocusedElement = null;
+        }, 50);
+    }
 }
 
 // --- Skill Selection Modal ---
@@ -1028,9 +1205,11 @@ function openSkillModal() {
     if (!combat) return;
 
     selectedSkill = null;
+    selectedDocFilter = null;
     document.getElementById('skill-search').value = '';
     document.getElementById('btn-confirm-skill').disabled = true;
 
+    renderDocumentFilters();
     const activeSkills = getActiveSkills();
     renderSkillList(activeSkills);
     document.getElementById('skill-details').innerHTML = '<p style="color: var(--text-tertiary);">Selecciona una habilidad</p>';
@@ -1042,15 +1221,44 @@ function getActiveSkills() {
     if (!combat || !combat.profile || !combat.profile.habilidades) return [];
 
     return combat.profile.habilidades.filter(skill => {
+        if (skill.esPasiva === true) {
+            return false;
+        }
+
         const categoria = (skill.categoria || '').toLowerCase();
         const tipo = (skill.tipo || '').toLowerCase();
         const clasificacion = (skill.clasificacion || '').toLowerCase();
 
-        if (categoria.includes('pasiv') || tipo.includes('pasiv') || clasificacion.includes('pasiv')) {
+        if (categoria.includes('pasiv') || categoria.includes('parafernalia') ||
+            tipo.includes('pasiv') || tipo.includes('parafernalia') ||
+            clasificacion.includes('pasiv')) {
             return false;
         }
         return true;
     });
+}
+
+function renderDocumentFilters() {
+    const container = document.getElementById('doc-filters');
+    if (!container || !combat || !combat.profile) return;
+
+    const docs = combat.profile.documentos || [];
+
+    let html = '<button class="doc-filter-btn ' + (selectedDocFilter === null ? 'active' : '') + '" onclick="filterByDocument(null)">Todos</button>';
+
+    for (const doc of docs) {
+        const isActive = selectedDocFilter === doc.nombre ? 'active' : '';
+        const shortName = doc.nombre.replace(/\[.*?\]\s*/g, '').replace('.txt', '').substring(0, 20);
+        html += `<button class="doc-filter-btn ${isActive}" onclick="filterByDocument('${doc.nombre}')" title="${doc.nombre}">${shortName}</button>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function filterByDocument(docName) {
+    selectedDocFilter = docName;
+    renderDocumentFilters();
+    filterSkills();
 }
 
 function renderSkillList(skills) {
@@ -1078,7 +1286,14 @@ function renderSkillList(skills) {
 
 function filterSkills() {
     const search = document.getElementById('skill-search').value.toLowerCase();
-    const activeSkills = getActiveSkills();
+    let activeSkills = getActiveSkills();
+
+    // Filter by document
+    if (selectedDocFilter) {
+        activeSkills = activeSkills.filter(s => s.fuente === selectedDocFilter);
+    }
+
+    // Filter by search
     const filtered = activeSkills.filter(s =>
         s.nombre.toLowerCase().includes(search)
     );
@@ -1142,7 +1357,7 @@ function addEnemy() {
 
     const name = document.getElementById('enemy-name').value.trim();
     if (!name) {
-        alert('El nombre es requerido');
+        showAlert('El nombre es requerido');
         return;
     }
 
@@ -1167,11 +1382,20 @@ function addEnemy() {
 function removeEnemy(enemyId) {
     if (!combat) return;
     combat.enemies = combat.enemies.filter(e => e.id !== enemyId);
-    // Also remove from indirects
     combat.indirects = combat.indirects.filter(i => i.targetId !== enemyId);
     if (currentActor === enemyId) {
         currentActor = 'player';
         onActorChange();
     }
     renderCombat();
+}
+
+function showAlert(message) {
+    document.getElementById('alert-message').textContent = message;
+    openModal('modal-alert');
+    // Ensure the OK button gets focus
+    setTimeout(() => {
+        const btn = document.querySelector('#modal-alert .btn-primary');
+        if (btn) btn.focus();
+    }, 100);
 }

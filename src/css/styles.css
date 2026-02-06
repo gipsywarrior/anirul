@@ -329,6 +329,19 @@ body {
     box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+/* Fix for Electron input focus issues */
+.input, select, textarea, button, .btn, .input-group, label, .checkbox-label {
+    -webkit-app-region: no-drag;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 .input::placeholder {
     color: var(--text-tertiary);
 }
@@ -1246,4 +1259,58 @@ body {
 
 .log-entry {
     animation: fadeIn 0.2s ease;
+}
+
+/* Document Filter Buttons */
+.doc-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.doc-filter-btn {
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.doc-filter-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.doc-filter-btn.active {
+    background: var(--accent-dark);
+    border-color: var(--accent-dim);
+    color: white;
+}
+
+/* Player Free Action Bar */
+.player-free-action-bar {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+/* Blank Action Button */
+.blank-action-btn {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.blank-action-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
 }
