@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANIRUL</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Titlebar -->
+    <div class="titlebar">
+        <div class="titlebar-drag">
+            <span class="titlebar-title">ANIRUL</span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn" id="btn-minimize">&#8211;</button>
+            <button class="titlebar-btn" id="btn-maximize">&#9633;</button>
+            <button class="titlebar-btn close" id="btn-close">&#215;</button>
+        </div>
+    </div>
+
+    <!-- Container -->
+    <div class="app-container">
+
+        <!-- SCREEN: Menu -->
+        <div id="screen-menu" class="screen active">
+            <div class="menu-container">
+                <div class="menu-header">
+                    <div class="menu-logo">SISTEMA</div>
+                    <h1 class="menu-title">ANIRUL</h1>
+                    <p class="menu-subtitle">Bitácora RPG Turn-Based</p>
+                </div>
+
+                <div class="menu-buttons">
+                    <button class="btn btn-primary" onclick="showScreen('screen-select-profile')">
+                        NUEVO COMBATE
+                    </button>
+                    <button class="btn" onclick="showScreen('screen-profiles')">
+                        PERFILES
+                    </button>
+                </div>
+
+                <div class="menu-footer">v1.0</div>
+            </div>
+        </div>
+
+        <!-- SCREEN: Profiles -->
+        <div id="screen-profiles" class="screen">
+            <div class="screen-header">
+                <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-menu')">Volver</button>
+                <h2 class="screen-title">Perfiles</h2>
+            </div>
+
+            <div class="profiles-container">
+                <!-- Left: Profile List -->
+                <div class="panel profiles-list">
+                    <div class="panel-header">
+                        <span class="panel-title">Perfiles</span>
+                        <button class="btn btn-sm btn-primary" onclick="newProfile()">+ Nuevo</button>
+                    </div>
+                    <div class="panel-body" id="profiles-list-content">
+                    </div>
+                </div>
+
+                <!-- Right: Editor -->
+                <div class="panel profile-editor">
+                    <div class="panel-header">
+                        <span class="panel-title" id="editor-title">Nuevo Perfil</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="input-group">
+                            <label class="input-label">Nombre</label>
+                            <input type="text" id="profile-name" class="input" placeholder="Nombre del personaje">
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Stats</label>
+                            <div class="stats-grid">
+                                <div class="stat-field">
+                                    <label>VIT</label>
+                                    <input type="number" id="stat-vit" class="input input-sm" value="100">
+                                </div>
+                                <div class="stat-field">
+                                    <label>FUE</label>
+                                    <input type="number" id="stat-fue" class="input input-sm" value="5">
+                                </div>
+                                <div class="stat-field">
+                                    <label>VEL</label>
+                                    <input type="number" id="stat-vel" class="input input-sm" value="5">
+                                </div>
+                                <div class="stat-field">
+                                    <label>PM</label>
+                                    <input type="number" id="stat-pm" class="input input-sm" value="5">
+                                </div>
+                                <div class="stat-field">
+                                    <label>VOL</label>
+                                    <input type="number" id="stat-vol" class="input input-sm" value="5">
+                                </div>
+                                <div class="stat-field">
+                                    <label>REF</label>
+                                    <input type="number" id="stat-ref" class="input input-sm" value="5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Documentos de habilidades</label>
+                            <div class="documents-box" id="documents-list">
+                            </div>
+                            <button class="btn btn-sm" onclick="addDocuments()">Agregar archivos .txt</button>
+                            <p id="total-skills" style="color: var(--text-tertiary); font-size: 11px; margin-top: 8px;">
+                                Total: 0 habilidades
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="editor-actions">
+                        <button class="btn btn-success" onclick="saveProfile()">Guardar</button>
+                        <button class="btn btn-danger" onclick="deleteProfile()">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN: Select Profile -->
+        <div id="screen-select-profile" class="screen">
+            <div class="screen-header">
+                <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-menu')">Volver</button>
+                <h2 class="screen-title">Seleccionar Personaje</h2>
+            </div>
+
+            <div class="profile-select-grid" id="select-profile-list">
+            </div>
+        </div>
+
+        <!-- SCREEN: Combat -->
+        <div id="screen-combat" class="screen">
+            <div class="screen-header">
+                <button class="btn btn-ghost btn-sm" onclick="confirmEndCombat()">Salir</button>
+                <h2 class="screen-title" id="combat-title">Combate</h2>
+            </div>
+
+            <div class="combat-layout">
+                <!-- Left Sidebar: Player Stats -->
+                <div class="combat-sidebar">
+                    <div class="stats-card">
+                        <div class="stats-card-name" id="player-name">---</div>
+
+                        <div class="stat-bar">
+                            <div class="stat-bar-header">
+                                <span class="stat-bar-label">VIT</span>
+                                <span class="stat-bar-value" id="vit-value">100/100</span>
+                            </div>
+                            <div class="stat-bar-track">
+                                <div class="stat-bar-fill vit" id="vit-bar" style="width: 100%"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-bar">
+                            <div class="stat-bar-header">
+                                <span class="stat-bar-label">PA</span>
+                                <span class="stat-bar-value" id="pa-value">10/10</span>
+                            </div>
+                            <div class="stat-bar-track">
+                                <div class="stat-bar-fill pa" id="pa-bar" style="width: 100%"></div>
+                            </div>
+                        </div>
+
+                        <div class="stats-mini" id="player-stats">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main: Combat Log -->
+                <div class="combat-main">
+                    <div class="combat-log-header">
+                        <span class="combat-log-title">Historial de Combate</span>
+                        <span class="combat-log-round" id="round-info">Ronda 1</span>
+                    </div>
+
+                    <div class="combat-log" id="combat-log">
+                        <div class="log-empty">Usa una habilidad para comenzar</div>
+                    </div>
+
+                    <!-- Actor selector -->
+                    <div class="actor-selector">
+                        <span style="font-size: 11px; color: var(--text-tertiary);">Actúa como:</span>
+                        <select id="actor-select" class="input input-sm" onchange="onActorChange()">
+                            <option value="player">Yo (Jugador)</option>
+                        </select>
+                    </div>
+
+                    <!-- Skill Input Bar (Player mode) -->
+                    <div class="combat-input" id="skill-input-area">
+                        <!-- Sin habilidad seleccionada -->
+                        <div class="skill-input-empty" id="skill-input-empty">
+                            <div class="skill-input-empty-row">
+                                <button class="skill-select-btn" onclick="openSkillModal()">
+                                    Seleccionar habilidad...
+                                </button>
+                            </div>
+                            <div class="skill-input-empty-row">
+                                <span style="color: var(--text-tertiary); font-size: 11px;">o enviar texto libre:</span>
+                                <input type="text" id="carte-blanche-desc" class="input input-sm" placeholder="Descripción..." style="flex: 1;">
+                                <button class="btn btn-primary btn-sm" onclick="sendCarteBlanche()">Enviar</button>
+                            </div>
+                        </div>
+
+                        <!-- Con habilidad seleccionada -->
+                        <div class="skill-input-full" id="skill-input-full" style="display: none;">
+                            <div class="skill-input-info">
+                                <div class="skill-input-header">
+                                    <span class="skill-input-name" id="input-skill-name">---</span>
+                                    <span class="skill-input-range" id="input-skill-range">Alcance: ---</span>
+                                    <span class="skill-input-cost" id="input-skill-cost">0 PA</span>
+                                    <button class="btn btn-ghost btn-sm" onclick="clearSelectedSkill()">×</button>
+                                </div>
+                                <div class="skill-input-damage" id="input-skill-damage" style="display: none;">
+                                    Daño: <strong id="input-damage-value">0</strong>
+                                </div>
+                                <div class="skill-input-effect" id="input-skill-effect">---</div>
+                            </div>
+                            <div class="skill-input-options">
+                                <select id="skill-target" class="input input-sm">
+                                    <option value="">Objetivo...</option>
+                                </select>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="add-indirect" onchange="toggleIndirectOptions()"> Indirecto
+                                </label>
+                                <input type="text" id="skill-notes" class="input input-sm" placeholder="Descripción adicional...">
+                                <button class="btn btn-primary" onclick="sendSkill()">Enviar</button>
+                            </div>
+                            <!-- Indirect options -->
+                            <div class="indirect-options" id="indirect-options" style="display: none;">
+                                <span style="font-size: 11px;">Indirecto:</span>
+                                <input type="number" id="indirect-percent" class="input input-sm" value="10" style="width: 60px;" min="1" max="100">
+                                <span style="font-size: 11px;">% por</span>
+                                <input type="number" id="indirect-actions" class="input input-sm" value="3" style="width: 50px;" min="1">
+                                <span style="font-size: 11px;">acciones</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Enemy Action Bar (Enemy mode) -->
+                    <div class="combat-input" id="enemy-input-area" style="display: none;">
+                        <div class="enemy-input-row">
+                            <span id="enemy-actor-name" style="color: var(--accent); font-weight: 500;">Adversario</span>
+                            <span style="font-size: 11px; color: var(--text-tertiary);">hace</span>
+                            <input type="number" id="enemy-damage" class="input input-sm" placeholder="Daño" style="width: 80px;">
+                            <span style="font-size: 11px; color: var(--text-tertiary);">a</span>
+                            <select id="enemy-target" class="input input-sm" style="width: 120px;">
+                                <option value="player">Jugador</option>
+                            </select>
+                            <span style="font-size: 11px; color: var(--text-tertiary);">por</span>
+                            <input type="number" id="enemy-pa-cost" class="input input-sm" placeholder="PA" style="width: 50px;" value="1">
+                            <span style="font-size: 11px; color: var(--text-tertiary);">PA</span>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="enemy-add-indirect" onchange="toggleEnemyIndirectOptions()"> Indirecto
+                            </label>
+                            <button class="btn btn-primary" onclick="sendEnemyAction()">Enviar</button>
+                        </div>
+                        <div class="enemy-input-row" style="margin-top: 8px;">
+                            <input type="text" id="enemy-description" class="input input-sm" placeholder="Descripción..." style="flex: 1;">
+                        </div>
+                        <div class="indirect-options" id="enemy-indirect-options" style="display: none;">
+                            <span style="font-size: 11px;">Indirecto:</span>
+                            <input type="number" id="enemy-indirect-percent" class="input input-sm" value="10" style="width: 60px;" min="1" max="100">
+                            <span style="font-size: 11px;">% por</span>
+                            <input type="number" id="enemy-indirect-actions" class="input input-sm" value="3" style="width: 50px;" min="1">
+                            <span style="font-size: 11px;">acciones</span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom buttons -->
+                    <div class="combat-bottom-buttons">
+                        <button class="btn" onclick="nextTurn()">Siguiente Turno</button>
+                        <button class="btn btn-primary" onclick="endRound()">Fin Ronda</button>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar: Enemies -->
+                <div class="combat-sidebar">
+                    <div class="panel enemies-panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Adversarios</span>
+                            <button class="btn btn-icon btn-ghost" onclick="openAddEnemyModal()">+</button>
+                        </div>
+                        <div class="panel-body" id="enemies-list">
+                            <div class="log-empty" style="padding: 16px; text-align: center;">Sin adversarios</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Skill Picker -->
+    <div id="modal-skill" class="modal">
+        <div class="modal-dialog lg">
+            <div class="modal-header">
+                <h3 class="modal-title">Seleccionar Habilidad</h3>
+                <button class="modal-close" onclick="closeModal('modal-skill')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="skill-search" class="input" placeholder="Buscar habilidad..." oninput="filterSkills()">
+
+                <div class="skill-picker">
+                    <div class="skill-list" id="skill-list">
+                    </div>
+                    <div class="skill-details" id="skill-details">
+                        <p style="color: var(--text-tertiary);">Selecciona una habilidad</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('modal-skill')">Cancelar</button>
+                <button class="btn btn-primary" id="btn-confirm-skill" onclick="confirmSkillSelection()" disabled>
+                    Seleccionar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Enemy -->
+    <div id="modal-enemy" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">Agregar Adversario</h3>
+                <button class="modal-close" onclick="closeModal('modal-enemy')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">Nombre</label>
+                    <input type="text" id="enemy-name" class="input" placeholder="Nombre del adversario">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">VIT Máxima</label>
+                    <input type="number" id="enemy-vit" class="input" value="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('modal-enemy')">Cancelar</button>
+                <button class="btn btn-primary" onclick="addEnemy()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Log Entry -->
+    <div id="modal-edit-entry" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">Editar Entrada</h3>
+                <button class="modal-close" onclick="closeModal('modal-edit-entry')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">Notas</label>
+                    <input type="text" id="edit-entry-notes" class="input">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Daño</label>
+                    <input type="number" id="edit-entry-damage" class="input" value="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteEditingEntry()">Eliminar</button>
+                <button class="btn" onclick="closeModal('modal-edit-entry')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveEditingEntry()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/parser.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

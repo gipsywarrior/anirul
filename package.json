@@ -1,0 +1,15 @@
+{
+  "name": "anirul",
+  "version": "1.0.0",
+  "description": "Sistema de Bitácora RPG Turn-Based",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging"
+  },
+  "author": "Anirul",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}
