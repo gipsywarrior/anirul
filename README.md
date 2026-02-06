@@ -1,6 +1,6 @@
 # ANIRUL - Sistema de Bitácora RPG
 
-Aplicación de escritorio para gestionar combates RPG turn-based con estética Sci-Fi terminal futurista.
+Aplicación de escritorio para gestionar combates RPG turn-based.
 
 ## Instalación
 
